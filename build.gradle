@@ -57,6 +57,7 @@ def getVersion = { boolean considerSnapshot ->
             standardOutput = os
         }
         def versionStr = os.toString().trim()
+        System.out.println("Version: $versionStr")
         def matcher = versionStr =~ /(\d*)\.(\d*)\.(\d*)(-(\d*)-([a-zA-Z\d]*))?/
         matcher.find()
 
