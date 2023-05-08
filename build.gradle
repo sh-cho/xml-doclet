@@ -57,7 +57,7 @@ def getVersion = { boolean considerSnapshot ->
             standardOutput = os
         }
         def versionStr = os.toString().trim()
-        def matcher = versionStr =~ /(\d*)\.(\d*)\.(\d*)-([a-zA-Z\d]*)/
+        def matcher = versionStr =~ /(\d*)\.(\d*)\.(\d*)(-([a-zA-Z\d]*))?/
         matcher.find()
 
         major = matcher[0][1]
