@@ -139,7 +139,7 @@ publishing {
         maven {
             name = "GitHubPackages"
 
-            url = uri("https://maven.pkg.github.com/manticore-projects/jsqlparser")
+            url = uri("https://maven.pkg.github.com/manticore-projects/xml-doclet")
             credentials(PasswordCredentials)
         }
     }
