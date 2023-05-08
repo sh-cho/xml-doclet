@@ -31,11 +31,12 @@ dependencies {
     api 'org.slf4j:slf4j-api:+'
     api 'javax.xml.bind:jaxb-api:2.+'
 
-    // We need to export this as API explicitly
+    // We need to export this as API explicitly and fix the Versions
     // or else the Doclet will silently(!) not generate the output
-    api 'org.glassfish.jaxb:jaxb-runtime:2.+'
+    api 'org.glassfish.jaxb:jaxb-runtime:2.3.2'
+    api 'javax.activation:javax.activation-api:1.2.0'
 
-    jaxb2 'org.glassfish.jaxb:jaxb-runtime:2.+'
+    jaxb2 'org.glassfish.jaxb:jaxb-runtime:2.3.2'
     jaxb2 'javax.activation:javax.activation-api:1.2.0'
     testImplementation 'org.slf4j:slf4j-simple:+'
     testImplementation 'junit:junit:+'

@@ -68,7 +68,7 @@ If you are using maven you can use this library by adding the following report t
                 <docletArtifact>
                     <groupId>com.manticore-projects.tools</groupId>
                     <artifactId>xml-doclet</artifactId>
-                    <version>1.1.2</version>
+                    <version>1.1.3</version>
                 </docletArtifact>
             </configuration>
         </execution>
