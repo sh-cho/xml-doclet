@@ -10,12 +10,18 @@ Gradle
 ------
 
 ```gradle
+repositories {
+    // Sonatype OSSRH
+    maven {
+        url = uri('https://s01.oss.sonatype.org/content/repositories/snapshots/')
+    }
+}
 configurations {
     xmlDoclet
 }
 
 dependencies {
-    xmlDoclet 'com.github.manticore-projects:xml-doclet:+'
+    xmlDoclet 'com.manticore-projects.tools:xml-doclet:+'
 }
 
 tasks.register('xmldoc', Javadoc) {
@@ -36,6 +42,15 @@ Usage
 If you are using maven you can use this library by adding the following report to your pom.xml:
 
 ```xml
+<repositories>
+    <repository>
+        <id>jsqlparser-snapshots</id>
+        <snapshots>
+            <enabled>true</enabled>
+        </snapshots>
+        <url>https://oss.sonatype.org/content/groups/public/</url>
+    </repository>
+</repositories>
 <plugin>
     <groupId>org.apache.maven.plugins</groupId>
     <artifactId>maven-javadoc-plugin</artifactId>
@@ -51,9 +66,9 @@ If you are using maven you can use this library by adding the following report t
                 <additionalparam>-d ${project.build.directory} -filename ${project.artifactId}-${project.version}-javadoc.xml</additionalparam>
                 <useStandardDocletOptions>false</useStandardDocletOptions>
                 <docletArtifact>
-                    <groupId>com.github.markusbernhardt</groupId>
+                    <groupId>com.manticore-projects.tools</groupId>
                     <artifactId>xml-doclet</artifactId>
-                    <version>1.0.5</version>
+                    <version>1.1.0</version>
                 </docletArtifact>
             </configuration>
         </execution>
