@@ -6,7 +6,7 @@ Changelog of xml-doclet.
 
 ### Features
 
--  JavaDoc 11/13 support ([67bbb](https://github.com/vojtechhabarta/xml-doclet/commit/67bbbf0faf2871f) Andreas Reichel)  
+-  JavaDoc 11/13 support ([67bbb](https://github.com/vojtechhabarta/xml-doclet/commit/67bbbf0faf2871f) Andreas Reichel)
 
 ### Other changes
 
@@ -314,5 +314,3 @@ Changelog of xml-doclet.
 
 
 [6958c](https://github.com/vojtechhabarta/xml-doclet/commit/6958ca931d2b728) Markus Bernhardt *2013-10-13 12:10:55*
-
-
