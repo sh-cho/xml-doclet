@@ -12,16 +12,14 @@ package com.github.markusbernhardt.xmldoclet.simpledata;
  * @version version
  */
 public class Tag1 {
-	/**
-	 * The famous <code>foo</code> method.
-	 * 
-	 * @param bar
-	 *            bar
-	 * @return object
-	 * @throws NullPointerException
-	 *             exception
-	 */
-	public Object foo(Object bar) {
-		return "";
-	}
+    /**
+     * The famous <code>foo</code> method.
+     * 
+     * @param bar bar
+     * @return object
+     * @throws NullPointerException exception
+     */
+    public Object foo(Object bar) {
+        return "";
+    }
 }

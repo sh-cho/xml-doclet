@@ -1,0 +1,259 @@
+plugins {
+    id 'java-library'
+    id 'maven-publish'
+    id 'signing'
+    
+    id("com.github.gradlecommunity.jaxb2") version "3.1.0"
+
+    id "com.github.spotbugs" version "latest.release"
+    id "com.diffplug.spotless" version "latest.release"
+    id 'pmd'
+    id 'checkstyle'
+}
+
+repositories {
+    mavenLocal()
+    maven {
+        url = uri('https://oss.sonatype.org/content/repositories/snapshots')
+    }
+
+    maven {
+        url = uri('https://repo.maven.apache.org/maven2/')
+    }
+}
+
+dependencies {
+    api 'commons-cli:commons-cli:+'
+    api 'org.slf4j:slf4j-api:+'
+    api 'javax.xml.bind:jaxb-api:2.+'
+    jaxb2 'org.glassfish.jaxb:jaxb-runtime:2.+'
+    jaxb2 'javax.activation:javax.activation-api:1.2.0'
+    testImplementation 'org.slf4j:slf4j-simple:+'
+    testImplementation 'junit:junit:+'
+}
+
+
+def getVersion = { boolean considerSnapshot ->
+    def major = 0
+    def minor = 0
+    def patch = 0
+    def commit = ""
+    def snapshot =""
+    new ByteArrayOutputStream().withStream { os ->
+        exec {
+            workingDir "$projectDir"
+            args = [
+                    "--no-pager"
+                    , "describe"
+                    , "--tags"
+                    , "--always"
+                    , "--dirty=-SNAPSHOT"
+            ]
+            executable "git"
+            standardOutput = os
+        }
+        def versionStr = os.toString().trim()
+        def matcher = versionStr =~ /(\d*)\.(\d*)-(\d*)-([a-zA-Z\d]*)/
+        matcher.find()
+
+        major = matcher[0][1]
+        minor = matcher[0][2]
+        patch = matcher[0][3]
+        commit = matcher[0][4]
+
+        if (considerSnapshot && versionStr.endsWith("SNAPSHOT")) {
+            minor++
+            snapshot =  "-SNAPSHOT"
+        }
+    }
+    return "${major}.${minor}${snapshot}"
+}
+version = getVersion(true)
+group = 'com.github.markusbernhardt'
+description = 'XML Doclet'
+
+
+publish {
+    dependsOn(check)
+}
+
+publishing {
+    publications {
+        mavenJava(MavenPublication) {
+            from components.java
+            versionMapping {
+                usage('java-api') {
+                    fromResolutionOf('runtimeClasspath')
+                }
+                usage('java-runtime') {
+                    fromResolutionResult()
+                }
+            }
+            pom {
+                name = 'XML Doclet'
+                description = 'Doclet for writing XML file (instead of JavaDoc HTML)'
+                url = 'https://github.com/manticore-projects/xml-doclet'
+                licenses {
+                    license {
+                        name = 'The Apache Software License, Version 2.0'
+                        url = 'http://www.apache.org/licenses/LICENSE-2.0.txt'
+                    }
+                }
+                developers {
+                    developer {
+                        id = 'mbe'
+                        name = 'Markus Bernhardt'
+                        email = 'markus.bernhardt@me.comt'
+                    }
+                    developer {
+                        id = 'are'
+                        name = 'Andreas Reichel'
+                        email = 'andreas@manticore-projects.com'
+                    }
+                    developer {
+                        id = 'vha'
+                        name = 'Vojtěch Habarta'
+                    }
+                }
+                scm {
+                    connection = 'scm:git:https://github.com/manticore-projects/xml-doclet.git'
+                    developerConnection = 'scm:git:ssh://git@github.com:manticore-projects/xml-doclet.git'
+                    url = 'https://github.com/manticore-projects/xml-doclet.git'
+                }
+            }
+        }
+    }
+    repositories {
+//        maven {
+//            name "ossrh"
+//
+//            def releasesRepoUrl = "https://oss.sonatype.org/content/repositories/snapshots"
+//            def snapshotsRepoUrl= "https://oss.sonatype.org/service/local/staging/deploy/maven2"
+//            url = version.endsWith('SNAPSHOT') ? snapshotsRepoUrl : releasesRepoUrl
+//            credentials(PasswordCredentials)
+//        }
+        maven {
+            name = "GitHubPackages"
+
+            url = uri("https://maven.pkg.github.com/manticore-projects/jsqlparser")
+            credentials(PasswordCredentials)
+        }
+    }
+}
+
+signing {
+    sign publishing.publications.mavenJava
+}
+
+java {
+    withSourcesJar()
+    withJavadocJar()
+
+    sourceCompatibility(JavaVersion.VERSION_1_8)
+    targetCompatibility(JavaVersion.VERSION_1_8)
+
+    // needed for XML-Doclet to work (since Doclet changed again with Java 13)
+    toolchain {
+        languageVersion.set(JavaLanguageVersion.of(11))
+    }
+}
+
+jaxb2 {
+    xjc {
+      'xmldoclet-classes' {
+        basePackage = 'com.github.markusbernhardt.xmldoclet.xjc'
+        schema = 'src/main/xjc/javadoc.xsd'
+        encoding = 'UTF-8'
+        generatedSourcesDir = "${project.buildDir}/generated/java"
+      }
+    }
+}
+
+javadoc {
+    if(JavaVersion.current().isJava9Compatible()) {
+        options.addBooleanOption('html5', true)
+    }
+    options.addBooleanOption("Xdoclint:none", true)
+}
+
+tasks.withType(JavaCompile) {
+    options.encoding = 'UTF-8'
+}
+
+tasks.withType(Javadoc) {
+    options.encoding = 'UTF-8'
+}
+
+
+spotbugsMain {
+    reports {
+        html {
+            enabled = true
+            destination = file("build/reports/spotbugs/main/spotbugs.html")
+            stylesheet = 'fancy-hist.xsl'
+        }
+    }
+}
+
+spotbugs {
+    // fail only on P1 and without the net.sf.jsqlparser.parser.*
+    excludeFilter = file("config/spotbugs/spotBugsExcludeFilter.xml")
+
+    // do not run over the test, although we should do that eventually
+    spotbugsTest.enabled = false
+}
+
+pmd {
+    consoleOutput = false
+    //toolVersion = "6.46.0"
+
+    sourceSets = [sourceSets.main]
+
+    // clear the ruleset in order to use configured rules only
+    ruleSets = []
+
+    //rulesMinimumPriority = 1
+    ruleSetFiles = files("config/pmd/ruleset.xml")
+
+    pmdMain {
+        excludes = [
+                "build/generated/*"
+        ]
+    }
+}
+
+tasks.whenTaskAdded {task ->
+    if(task.name.contains("compileJaxb2Java")) {
+        task.enabled = false
+    }
+}
+
+checkstyle {
+    sourceSets = [sourceSets.main, sourceSets.test]
+    configFile =rootProject.file('config/checkstyle/checkstyle.xml')
+}
+
+spotless {
+    // optional: limit format enforcement to just the files changed by this feature branch
+    ratchetFrom 'origin/master'
+
+    format 'misc', {
+        // define the files to apply `misc` to
+        target '*.rst', '*.md', '.gitignore'
+        // define the steps to apply to those files
+        trimTrailingWhitespace()
+        indentWithSpaces(4) // or spaces. Takes an integer argument if you don't like 4
+        endWithNewline()
+    }
+    java {
+        indentWithSpaces(4)
+        eclipse().configFile('config/formatter/eclipse-java-google-style.xml')
+    }
+}
+
+tasks.withType(Checkstyle) {
+    reports {
+        xml.required = false
+        html.required = true
+    }
+}

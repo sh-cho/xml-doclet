@@ -9,13 +9,11 @@ import org.slf4j.Logger;
  */
 public interface LoggingLevel {
 
-	/**
-	 * Intefrace mehtod.
-	 * 
-	 * @param log
-	 *            the logger to log to
-	 * @param message
-	 *            the message to log to the given logger.
-	 */
-	public void log(Logger log, String message);
+    /**
+     * Intefrace mehtod.
+     * 
+     * @param log the logger to log to
+     * @param message the message to log to the given logger.
+     */
+    void log(Logger log, String message);
 }
