@@ -73,7 +73,7 @@ def getVersion = { boolean considerSnapshot ->
     return "${major}.${minor}${snapshot}"
 }
 version = getVersion(true)
-group = 'com.github.markusbernhardt'
+group = 'com.manticore-projects.tools'
 description = 'XML Doclet'
 
 
@@ -139,7 +139,7 @@ publishing {
         maven {
             name = "GitHubPackages"
 
-            url = uri("https://maven.pkg.github.com/manticore-projects/jsqlparser")
+            url = uri("https://maven.pkg.github.com/manticore-projects/xml-doclet")
             credentials(PasswordCredentials)
         }
     }
