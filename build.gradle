@@ -1,3 +1,5 @@
+import se.bjurr.gitchangelog.plugin.gradle.GitChangelogTask
+
 plugins {
     id 'java-library'
     id 'maven-publish'
@@ -9,6 +11,8 @@ plugins {
     id "com.diffplug.spotless" version "latest.release"
     id 'pmd'
     id 'checkstyle'
+
+    id "se.bjurr.gitchangelog.git-changelog-gradle-plugin" version "latest.release"
 }
 
 repositories {
@@ -53,7 +57,7 @@ def getVersion = { boolean considerSnapshot ->
             standardOutput = os
         }
         def versionStr = os.toString().trim()
-        def matcher = versionStr =~ /(\d*)\.(\d*)-(\d*)-([a-zA-Z\d]*)/
+        def matcher = versionStr =~ /(\d*)\.(\d*)\.(\d*)-([a-zA-Z\d]*)/
         matcher.find()
 
         major = matcher[0][1]
