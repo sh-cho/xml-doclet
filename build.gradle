@@ -4,7 +4,7 @@ plugins {
     id 'java-library'
     id 'maven-publish'
     id 'signing'
-    
+
     id("com.github.gradlecommunity.jaxb2") version "3.1.0"
 
     id "com.github.spotbugs" version "latest.release"
@@ -30,6 +30,11 @@ dependencies {
     api 'commons-cli:commons-cli:+'
     api 'org.slf4j:slf4j-api:+'
     api 'javax.xml.bind:jaxb-api:2.+'
+
+    // We need to export this as API explicitly
+    // or else the Doclet will silently(!) not generate the output
+    api 'org.glassfish.jaxb:jaxb-runtime:2.+'
+
     jaxb2 'org.glassfish.jaxb:jaxb-runtime:2.+'
     jaxb2 'javax.activation:javax.activation-api:1.2.0'
     testImplementation 'org.slf4j:slf4j-simple:+'
@@ -71,7 +76,7 @@ def getVersion = { boolean considerSnapshot ->
             snapshot =  "-SNAPSHOT"
         }
     }
-    return "${major}.${minor}${snapshot}"
+    return "${major}.${minor}.${patch}${snapshot}"
 }
 version = getVersion(true)
 group = 'com.manticore-projects.tools'
@@ -169,7 +174,8 @@ jaxb2 {
         basePackage = 'com.github.markusbernhardt.xmldoclet.xjc'
         schema = 'src/main/xjc/javadoc.xsd'
         encoding = 'UTF-8'
-        generatedSourcesDir = "${project.buildDir}/generated/java"
+        generatedSourcesDir = "${project.buildDir}/generated/sources/java"
+        additionalArgs = '-extension'
       }
     }
 }
