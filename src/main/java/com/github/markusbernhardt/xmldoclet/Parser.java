@@ -2,9 +2,7 @@ package com.github.markusbernhardt.xmldoclet;
 
 import java.util.Map;
 import java.util.TreeMap;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import java.util.logging.Logger;
 
 import com.github.markusbernhardt.xmldoclet.xjc.Annotation;
 import com.github.markusbernhardt.xmldoclet.xjc.AnnotationArgument;
@@ -50,7 +48,7 @@ import com.sun.javadoc.WildcardType;
  */
 public class Parser {
 
-    private final static Logger LOGGER = LoggerFactory.getLogger(Parser.class);
+    private final static Logger LOGGER = Logger.getLogger(Parser.class.getName());
 
     protected Map<String, Package> packages = new TreeMap<String, Package>();
 
@@ -176,9 +174,9 @@ public class Parser {
             annotationInstanceNode.setName(annotTypeInfo.name());
             annotationInstanceNode.setQualified(annotTypeInfo.qualifiedTypeName());
         } catch (ClassCastException castException) {
-            LOGGER.error(
+            LOGGER.severe(
                     "Unable to obtain type data about an annotation found on: " + programElement);
-            LOGGER.error("Add to the classpath the class/jar that defines this annotation.");
+            LOGGER.severe("Add to the classpath the class/jar that defines this annotation.");
         }
 
         for (AnnotationDesc.ElementValuePair elementValuesPair : annotationDesc.elementValues()) {

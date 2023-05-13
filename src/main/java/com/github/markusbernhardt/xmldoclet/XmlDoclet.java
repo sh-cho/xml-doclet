@@ -2,9 +2,10 @@ package com.github.markusbernhardt.xmldoclet;
 
 import java.io.BufferedOutputStream;
 import java.io.File;
-import java.io.FileNotFoundException;
+import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.PrintWriter;
 import java.nio.charset.Charset;
 import java.util.ArrayList;
@@ -15,6 +16,9 @@ import java.util.ListIterator;
 import javax.xml.bind.JAXBContext;
 import javax.xml.bind.JAXBException;
 import javax.xml.bind.Marshaller;
+import javax.xml.transform.Source;
+import javax.xml.transform.URIResolver;
+import javax.xml.transform.stream.StreamSource;
 
 import org.apache.commons.cli.BasicParser;
 import org.apache.commons.cli.CommandLine;
@@ -24,13 +28,16 @@ import org.apache.commons.cli.Option;
 import org.apache.commons.cli.OptionBuilder;
 import org.apache.commons.cli.Options;
 import org.apache.commons.cli.ParseException;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import com.github.markusbernhardt.xmldoclet.xjc.Root;
 import com.sun.javadoc.DocErrorReporter;
 import com.sun.javadoc.LanguageVersion;
 import com.sun.javadoc.RootDoc;
+
+import net.sf.saxon.s9api.*;
+
+import java.io.OutputStream;
+import java.util.logging.Level;
 
 /**
  * Doclet class.
@@ -38,13 +45,16 @@ import com.sun.javadoc.RootDoc;
  * @author markus
  */
 public class XmlDoclet {
+    private final static java.util.logging.Logger LOGGER =
+            java.util.logging.Logger.getLogger(XmlDoclet.class.getName());
 
-    private final static Logger LOGGER = LoggerFactory.getLogger(Parser.class);
+    public static final String RESTRUCTURED_XSL = "/com/manticore/xsl/restructured.xsl";
+    public static final String MARKDOWN_XSL = "/com/manticore/xsl/markdown.xsl";
 
     /**
      * The parsed object model. Used in unit tests.
      */
-    public static Root root;
+    static Root root;
 
     /**
      * The Options instance to parse command line strings.
@@ -72,6 +82,37 @@ public class XmlDoclet {
         OptionBuilder
                 .withDescription("Parse javadoc, but don't write output file.\nDefault: false");
         OPTIONS.addOption(OptionBuilder.create("dryrun"));
+
+        OptionBuilder.withArgName("rst");
+        OptionBuilder.isRequired(false);
+        OptionBuilder.hasArgs(0);
+        OptionBuilder
+                .withDescription(
+                        "Transform the XML into a Restructured Text file (*.rst).\nDefault: false");
+        OPTIONS.addOption(OptionBuilder.create("rst"));
+
+        OptionBuilder.withArgName("md");
+        OptionBuilder.isRequired(false);
+        OptionBuilder.hasArgs(0);
+        OptionBuilder
+                .withDescription("Transform the XML into a Markdown file (*.md).\nDefault: false");
+        OPTIONS.addOption(OptionBuilder.create("md"));
+
+        OptionBuilder.withArgName("docbook");
+        OptionBuilder.isRequired(false);
+        OptionBuilder.hasArgs(0);
+        OptionBuilder
+                .withDescription(
+                        "Transform the XML into a DocBook file (*.db.xml).\nDefault: false");
+        OPTIONS.addOption(OptionBuilder.create("docbook"));
+
+        OptionBuilder.withArgName("adoc");
+        OptionBuilder.isRequired(false);
+        OptionBuilder.hasArgs(0);
+        OptionBuilder
+                .withDescription(
+                        "Transform the XML into an Ascii Doctor file (*.adoc).\nDefault: false");
+        OPTIONS.addOption(OptionBuilder.create("adoc"));
 
         OptionBuilder.withArgName("filename");
         OptionBuilder.isRequired(false);
@@ -112,7 +153,7 @@ public class XmlDoclet {
      * 
      * @see com.sun.javadoc.Doclet#validOptions(String[][], DocErrorReporter)
      * 
-     * @param optionsArrayArray The two dimensional array of options.
+     * @param optionsArrayArray The two-dimensional array of options.
      * @param reporter The error reporter.
      * 
      * @return <code>true</code> if the options are valid.
@@ -140,6 +181,53 @@ public class XmlDoclet {
         return true;
     }
 
+    public static void transform(InputStream xsltInputStream, File xmlFile, File outFile)
+            throws IOException, SaxonApiException {
+
+        try (InputStream xmlInputStream = new FileInputStream(xmlFile);
+                OutputStream output = new FileOutputStream(outFile);) {
+            // Create a Saxon Processor
+            Processor processor = new Processor(false);
+
+            // Create a DocumentBuilder
+            DocumentBuilder docBuilder = processor.newDocumentBuilder();
+
+            // Parse the XML input
+            XdmNode xmlDoc = docBuilder.build(new StreamSource(xmlInputStream));
+
+            // Create a XsltCompiler
+            XsltCompiler compiler = processor.newXsltCompiler();
+
+            // Set the ClassLoader for the compiler to load resources from the classpath
+            compiler.setURIResolver(new ClasspathResourceURIResolver());
+
+            // Create a XsltExecutable from the XSLT input stream
+            XsltExecutable xsltExecutable = compiler.compile(new StreamSource(xsltInputStream));
+            XsltTransformer transformer = xsltExecutable.load();
+
+            // Set the source document
+            transformer.setInitialContextNode(xmlDoc);
+
+            // Set the result destination
+            Serializer serializer = processor.newSerializer(output);
+            transformer.setDestination(serializer);
+
+            // Transform the XML
+            transformer.transform();
+        }
+    }
+
+    // ClasspathResourceURIResolver class for resolving resources from the classpath
+    private static class ClasspathResourceURIResolver implements URIResolver {
+        public Source resolve(String href, String base) {
+            InputStream inputStream = getClass().getClassLoader().getResourceAsStream(href);
+            if (inputStream != null) {
+                return new StreamSource(inputStream);
+            }
+            return null;
+        }
+    }
+
     /**
      * Save XML object model to a file via JAXB.
      * 
@@ -151,9 +239,22 @@ public class XmlDoclet {
             return;
         }
 
-        FileOutputStream fileOutputStream = null;
-        BufferedOutputStream bufferedOutputStream = null;
-        try {
+        String filename = commandLine.hasOption("filename")
+                ? commandLine.getOptionValue("filename")
+                : "javadoc.xml";
+
+        String basename = filename.toLowerCase().endsWith(".xml")
+                ? filename.substring(0, filename.length() - ".xml".length())
+                : filename;
+
+        File xmlFile = commandLine.hasOption("d")
+                ? new File(commandLine.getOptionValue("d"), filename)
+                : new File(filename);
+
+        try (
+                FileOutputStream fileOutputStream = new FileOutputStream(xmlFile);
+                BufferedOutputStream bufferedOutputStream =
+                        new BufferedOutputStream(fileOutputStream);) {
             JAXBContext contextObj = JAXBContext.newInstance(Root.class);
 
             Marshaller marshaller = contextObj.createMarshaller();
@@ -163,38 +264,44 @@ public class XmlDoclet {
                         commandLine.getOptionValue("docencoding"));
             }
 
-            String filename = "javadoc.xml";
-            if (commandLine.hasOption("filename")) {
-                filename = commandLine.getOptionValue("filename");
-            }
-            if (commandLine.hasOption("d")) {
-                filename = commandLine.getOptionValue("d") + File.separator + filename;
-            }
-
-            fileOutputStream = new FileOutputStream(filename);
-            bufferedOutputStream = new BufferedOutputStream(fileOutputStream, 1024 * 1024);
 
             marshaller.marshal(root, bufferedOutputStream);
             bufferedOutputStream.flush();
             fileOutputStream.flush();
 
-        } catch (JAXBException e) {
-            LOGGER.error(e.getMessage(), e);
-        } catch (FileNotFoundException e) {
-            LOGGER.error(e.getMessage(), e);
-        } catch (IOException e) {
-            LOGGER.error(e.getMessage(), e);
-        } finally {
-            try {
-                if (bufferedOutputStream != null) {
-                    bufferedOutputStream.close();
+            LOGGER.info("Wrote XML to: " + xmlFile.getAbsolutePath());
+
+            if (commandLine.hasOption("rst")) {
+                File outFile = new File(xmlFile.getParent(), basename + ".rst");
+                try (InputStream inputStream =
+                        XmlDoclet.class.getResourceAsStream(RESTRUCTURED_XSL);) {
+                    transform(inputStream, xmlFile, outFile);
+                } catch (Exception ex) {
+                    LOGGER.log(Level.SEVERE, "Failed to write Restructured Text", ex);
                 }
-                if (fileOutputStream != null) {
-                    fileOutputStream.close();
-                }
-            } catch (IOException e) {
-                LOGGER.error(e.getMessage(), e);
+                LOGGER.info("Wrote Restructured Text to: " + outFile.getAbsolutePath());
             }
+
+            if (commandLine.hasOption("md")) {
+                File outFile = new File(xmlFile.getParent(), basename + ".md");
+                try (InputStream inputStream =
+                        XmlDoclet.class.getResourceAsStream(MARKDOWN_XSL);) {
+                    transform(inputStream, xmlFile, outFile);
+                } catch (Exception ex) {
+                    LOGGER.log(Level.SEVERE, "Failed to write Markdown", ex);
+                }
+                LOGGER.info("Wrote Markdown to: " + outFile.getAbsolutePath());
+            }
+
+            if (commandLine.hasOption("docbook")) {
+                LOGGER.info("Docbook transformation is not supported yet.");
+            }
+
+            if (commandLine.hasOption("adoc")) {
+                LOGGER.info("ASCII Doctor transformation is not supported yet.");
+            }
+        } catch (RuntimeException | IOException | JAXBException e) {
+            LOGGER.log(Level.SEVERE, "Failed to write the XML File", e);
         }
     }
 
@@ -241,11 +348,7 @@ public class XmlDoclet {
                     commandLineParser.parse(OPTIONS, argumentList.toArray(new String[] {}));
             return commandLine;
         } catch (ParseException e) {
-            LoggingOutputStream loggingOutputStream =
-                    new LoggingOutputStream(LOGGER, LoggingLevelEnum.INFO);
-            PrintWriter printWriter =
-                    new PrintWriter(loggingOutputStream, true, Charset.defaultCharset());
-
+            PrintWriter printWriter = new PrintWriter(System.out, true, Charset.defaultCharset());
             HelpFormatter helpFormatter = new HelpFormatter();
             helpFormatter.printHelp(printWriter, 74,
                     "javadoc -doclet " + XmlDoclet.class.getName() + " [options]",

@@ -1,8 +1,10 @@
 A doclet to output javadoc as XML
 =================================
 
-This library provides a doclet to output the javadoc comments from Java source code to a XML document.
-JavaDoc 11 up to JavaDoc 13 is supported.
+This library provides a doclet to output the javadoc comments from Java source code to a XML, Restructured Text (*.rst) document.
+All modern JDKs 11, 17 and 21 are supported (via `languageVersion.set(JavaLanguageVersion.of(11)` enforcing JavaDoc 11).
+
+Planned support for Markdown (*.md), Docbook XML and ASCII Doctor (*.adoc). Sponsors or Contributors are most welcome.
 
 The source code has been salvaged from https://github.com/MarkusBernhardt/xml-doclet, which has been derived from the [xml-doclet](http://code.google.com/p/xml-doclet) library by Seth Call.
 
@@ -20,12 +22,20 @@ configurations {
     xmlDoclet
 }
 
+java {
+    // needed for XML-Doclet to work (since Doclet changed again with Java 13)
+    toolchain {
+        languageVersion.set(JavaLanguageVersion.of(11))
+    }
+}
+
 dependencies {
     xmlDoclet 'com.manticore-projects.tools:xml-doclet:+'
 }
 
 tasks.register('xmldoc', Javadoc) {
     source = sourceSets.main.allJava
+    // beware, that this folder will be overwittten by Gradle
     destinationDir = reporting.file("xmlDoclet")
     options.docletpath = configurations.xmlDoclet.files.asType(List)
     options.doclet = "com.github.markusbernhardt.xmldoclet.XmlDoclet"
@@ -33,6 +43,16 @@ tasks.register('xmldoc', Javadoc) {
     // @see https://github.com/gradle/gradle/issues/11898#issue-549900869
     title = null
     options.noTimestamp(false)
+
+    // transform to Restructured Text and copy to Sphinx Source folder
+    options.addBooleanOption("rst", true)
+
+    doLast {
+        copy {
+            from reporting.file("xmlDoclet/javadoc.rst")
+            into "${projectDir}/src/site/sphinx/"
+        }
+    }
 }
 ```
 
@@ -90,3 +110,15 @@ Options
 
     -filename <filename>      Name of the output file.
                               Default: javadoc.xml
+
+    -rst                      Write Restructured Text (*.rst) that can be used with Sphinx
+                              Default: false
+
+    -md                       Not implemented yet: Write Markdown (*.md)
+                              Default: false
+
+    -docbook                  Not implemented yet: Write DocBoook XML (*.db.xml)
+                              Default: false
+
+    -adoc                     Not implemented yet: Write Ascii Doctor (*.adoc)
+                              Default: false

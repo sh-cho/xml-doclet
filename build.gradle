@@ -12,6 +12,10 @@ plugins {
     id 'pmd'
     id 'checkstyle'
 
+    // Since we deal with XML libraries, we better scan for vulnerabilities
+    id 'org.owasp.dependencycheck' version "latest.release"
+    id 'org.sonatype.gradle.plugins.scan' version "latest.release"
+
     id "se.bjurr.gitchangelog.git-changelog-gradle-plugin" version "latest.release"
 }
 
@@ -28,7 +32,6 @@ repositories {
 
 dependencies {
     api 'commons-cli:commons-cli:+'
-    api 'org.slf4j:slf4j-api:+'
     api 'javax.xml.bind:jaxb-api:2.+'
 
     // We need to export this as API explicitly and fix the Versions
@@ -40,6 +43,9 @@ dependencies {
     jaxb2 'javax.activation:javax.activation-api:1.2.0'
     testImplementation 'org.slf4j:slf4j-simple:+'
     testImplementation 'junit:junit:+'
+
+    // https://mvnrepository.com/artifact/net.sf.saxon/Saxon-HE
+    api 'net.sf.saxon:Saxon-HE:12.2'
 }
 
 
@@ -79,7 +85,7 @@ def getVersion = { boolean considerSnapshot ->
     }
     return "${major}.${minor}.${patch}${snapshot}"
 }
-version = getVersion(true)
+version = '1.2.1-SNAPSHOT'
 group = 'com.manticore-projects.tools'
 description = 'XML Doclet'
 
@@ -267,5 +273,30 @@ tasks.withType(Checkstyle) {
     reports {
         xml.required = false
         html.required = true
+    }
+}
+
+configurations.configureEach {
+    resolutionStrategy.componentSelection {
+        all { ComponentSelection selection ->
+            if (selection.candidate.group == 'com.github.pjfanning' && selection.candidate.version.endsWith("-SNAPSHOT")){
+                selection.reject("Rejecting changing version (SNAPSHOT)'")
+            }
+        }
+    }
+
+    resolutionStrategy {
+        force 'org.apache.logging.log4j:log4j-api:2.+'
+        force 'org.apache.logging.log4j:log4j-core:2.+'
+        force 'org.apache.logging.log4j:log4j-slf4j-impl:2.+'
+        force 'org.apache.logging.log4j:log4j-jul:2.+'
+        force 'org.slf4j:slf4j-log4j12:2.+'
+        force 'xerces:xercesImpl:+'
+        force 'xalan:xalan:+'
+        force 'org.dom4j:dom4j:+'
+
+        // avoid vulnerable optional artifacts
+        //exclude(group: 'org.dom4j')
+        exclude(group: 'org.jdom')
     }
 }

@@ -1,13 +1,12 @@
 package com.github.markusbernhardt.xmldoclet;
 
 import java.io.File;
-import java.io.OutputStream;
 import java.io.PrintWriter;
+import java.nio.charset.Charset;
 import java.util.ArrayList;
 import java.util.Arrays;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 import com.github.markusbernhardt.xmldoclet.xjc.Root;
 
@@ -18,7 +17,7 @@ import com.github.markusbernhardt.xmldoclet.xjc.Root;
  */
 public class AbstractTestParent {
 
-    private final static Logger LOGGER = LoggerFactory.getLogger(AbstractTestParent.class);
+    private final static Logger LOGGER = Logger.getLogger(AbstractTestParent.class.getName());
 
     /**
      * Processes the source code using javadoc.
@@ -51,13 +50,9 @@ public class AbstractTestParent {
             String[] sourceFiles,
             String[] subPackages, String[] additionalArguments) {
         try {
-            OutputStream errors = new LoggingOutputStream(LOGGER, LoggingLevelEnum.ERROR);
-            OutputStream warnings = new LoggingOutputStream(LOGGER, LoggingLevelEnum.WARN);
-            OutputStream notices = new LoggingOutputStream(LOGGER, LoggingLevelEnum.INFO);
 
-            PrintWriter errorWriter = new PrintWriter(errors, false);
-            PrintWriter warningWriter = new PrintWriter(warnings, false);
-            PrintWriter noticeWriter = new PrintWriter(notices, false);
+            PrintWriter errorWriter = new PrintWriter(System.err, true, Charset.defaultCharset());
+            PrintWriter infogWriter = new PrintWriter(System.out, true, Charset.defaultCharset());
 
             // aggregate arguments and packages
             ArrayList<String> argumentList = new ArrayList<String>();
@@ -103,19 +98,16 @@ public class AbstractTestParent {
             LOGGER.info("Executing doclet with arguments: " + join(" ", argumentList));
 
             String[] arguments = argumentList.toArray(new String[] {});
-            com.sun.tools.javadoc.Main.execute("xml-doclet", errorWriter, warningWriter,
-                    noticeWriter,
+            com.sun.tools.javadoc.Main.execute("xml-doclet", errorWriter, infogWriter,
+                    infogWriter,
                     XmlDoclet.class.getName(), arguments);
 
-            errors.close();
-            warnings.close();
-            notices.close();
 
             LOGGER.info("done with doclet processing");
         } catch (Exception e) {
-            LOGGER.error("doclet exception", e);
+            LOGGER.log(Level.SEVERE, "doclet exception", e);
         } catch (Error e) {
-            LOGGER.error("doclet error", e);
+            LOGGER.log(Level.SEVERE, "doclet error", e);
         }
 
         return XmlDoclet.root;
