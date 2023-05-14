@@ -3,11 +3,16 @@ A doclet to output javadoc as XML
 
 This library provides a doclet to output the javadoc comments from Java source code to a XML or a Restructured Text (*.rst) document.
 
-All modern JDKs 11, 17 and 21 are supported (via `languageVersion.set(JavaLanguageVersion.of(11)` enforcing JavaDoc 11).
+All modern JDKs 11, 17 and 21 are supported via `languageVersion.set(JavaLanguageVersion.of(11)` enforcing JavaDoc 11.
 
 Planned support for Markdown (*.md), Docbook XML and ASCII Doctor (*.adoc). Sponsors or Contributors are most welcome.
 
 The source code has been salvaged from https://github.com/MarkusBernhardt/xml-doclet, which has been derived from the [xml-doclet](http://code.google.com/p/xml-doclet) library by Seth Call.
+
+Example
+-------
+
+See the [JSQLParser Java API](https://manticore-projects.github.io/JSqlParser/javadoc.html#id554)
 
 Gradle
 ------
@@ -54,7 +59,7 @@ tasks.register('xmldoc', Javadoc) {
 }
 ```
 
-Usage
+Maven
 -----
 
 If you are using maven you can use this library by adding the following report to your pom.xml:
