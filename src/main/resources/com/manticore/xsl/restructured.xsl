@@ -9,14 +9,30 @@
             omit-xml-declaration="yes"
             indent="no" />
 
+    <xsl:param name="basePackage" select="''" />
+    <xsl:param name="doctitle" select="'Java API'" />
+
+    <xsl:function name="my:replacePRE">
+        <xsl:param name="input"/>
+        <xsl:variable name="content" select='replace($input, "&lt;pre&gt;\s*([^&lt;]*)\s*&lt;/pre&gt;", "$1")'  />
+        <xsl:text>``</xsl:text><xsl:value-of select="normalize-space($content)" disable-output-escaping="yes"/><xsl:text>``</xsl:text>
+    </xsl:function>
+
     <xsl:function name="my:replaceTags">
         <xsl:param name="input"/>
-        <xsl:variable name="linkTag" select='replace($input, "\{@link (.*)\}", "`$1`_")' />
-        <xsl:variable name="preTag" select='replace($linkTag, "&lt;pre&gt;(.*)&lt;/pre&gt;", "``$1``")' />
-        <xsl:variable name="codeTag" select='replace($preTag, "\{@code (.*)\}", "`$1`")' />
-        <xsl:variable name="codeTag1" select='replace($codeTag, "&lt;code&gt;(.*)&lt;/code&gt;", "``$1``")' />
+        <xsl:variable name="linkTag" select='replace($input, "\{@link [\s|\n]*([^\}]*[^\s])[\s|\n]*\}", "`$1`")' />
+        <xsl:variable name="preTag" select='replace($linkTag, "&lt;pre&gt;\s*([\s\S]*?)\s*&lt;/pre&gt;", "`$1`")'  />
+        <xsl:variable name="codeTag" select='replace($preTag, "\{@code [\s|\n]*([^\}]*[^\s])[\s|\n]*\}", "`$1`")' />
+        <xsl:variable name="codeTag1" select='replace($codeTag, "&lt;code&gt;\s*([\s\S]*?)\s*&lt;/code&gt;", "``$1``")' />
 
-        <xsl:value-of select="normalize-space($codeTag1)" disable-output-escaping="yes"/>
+        <xsl:variable name="normalized" select='replace($codeTag1, "\n\s*", " ")' />
+        <xsl:variable name="normalized1" select='replace($normalized, "&lt;p&gt;\s*([\s\S]*?)\s*&lt;/p&gt;", "&#xa;| $1")' />
+        <xsl:variable name="normalized2" select='replace($normalized1, "&lt;blockquote&gt;\s*([\s\S]*?)\s*&lt;/blockquote&gt;", "&#xa;| $1 &#xa;|")'  />
+        <xsl:variable name="normalized3" select='replace($normalized2, "&lt;p&gt;\s*", "&#xa;| ")' />
+        <xsl:variable name="normalized4" select='replace($normalized3, "&lt;br&gt;\s*", "&#xa;| ")' />
+
+        <xsl:value-of select="concat('| ', $normalized4)" disable-output-escaping="yes"/>
+
     </xsl:function>
 
     <xsl:function name="my:className">
@@ -32,16 +48,21 @@
         </xsl:choose>
     </xsl:function>
 
-    <xsl:variable name="basePackageName" select="concat('', 'net.sf.jsqlparser')"/>
 
     <!-- Match the root element -->
     <xsl:template match="/root">
         <xsl:text  disable-output-escaping="yes">
 #######################################################################
-JAVA API </xsl:text><xsl:value-of select="$basePackageName"/><xsl:text>
+</xsl:text><xsl:value-of select="$doctitle"/><xsl:text>
 #######################################################################
 
 </xsl:text>
+        <xsl:choose>
+<xsl:when test="string-length($basePackage)>0"><xsl:text>Base Package: </xsl:text><xsl:value-of select="$basePackage"/><xsl:text>
+
+</xsl:text></xsl:when>
+        </xsl:choose>
+
         <xsl:for-each select="package">
             <xsl:sort select="@name"/>
             <xsl:apply-templates select="."/>
@@ -55,11 +76,18 @@ JAVA API </xsl:text><xsl:value-of select="$basePackageName"/><xsl:text>
 ..  _</xsl:text><xsl:value-of select="@name"/><xsl:text  disable-output-escaping="yes">:
 ***********************************************************************
 </xsl:text><xsl:choose>
-            <xsl:when test="substring(@name, string-length(concat($basePackageName, '.')))=''">Base</xsl:when>
-            <xsl:otherwise><xsl:value-of select="substring(@name, string-length($basePackageName)+2)"/></xsl:otherwise>
+            <xsl:when test="$basePackage=''"><xsl:value-of select="@name"/></xsl:when>
+            <xsl:when test="substring(@name, string-length(concat($basePackage, '.')))=''">Base</xsl:when>
+            <xsl:otherwise><xsl:value-of select="substring(@name, string-length($basePackage)+2)"/></xsl:otherwise>
         </xsl:choose><xsl:text  disable-output-escaping="yes">
 ***********************************************************************
 </xsl:text>
+
+        <!-- Process enums in the package -->
+        <xsl:for-each select="enum">
+            <xsl:sort select="@qualified"/>
+            <xsl:apply-templates select="."/>
+        </xsl:for-each>
 
         <!-- Process classes in the package -->
         <xsl:for-each select="class">
@@ -196,6 +224,46 @@ JAVA API </xsl:text><xsl:value-of select="$basePackageName"/><xsl:text>
         <xsl:apply-templates select="method"/>
     </xsl:template>
 
+    <!-- Match enum elements -->
+    <xsl:template match="enum">
+        <xsl:variable name="enumName" select="@name"/>
+        <xsl:variable name="qualifiedEnumName" select="@qualified"/>
+
+        <!-- Generate reStructuredText heading for class -->
+        <xsl:text  disable-output-escaping="yes">
+..  _</xsl:text><xsl:value-of select="@qualified"/><xsl:text  disable-output-escaping="yes">:
+
+=======================================================================
+</xsl:text>
+        <xsl:value-of select="$enumName"/>
+        <xsl:text>(</xsl:text>
+        <xsl:for-each select="constant">
+            <xsl:value-of select="@name"/>
+            <xsl:if test="/comment">
+                <xsl:text>:'</xsl:text>
+                <xsl:value-of select="/comment"/><xsl:text>'</xsl:text>
+            </xsl:if>
+            <xsl:if test="position() != last()">
+                <xsl:text>, </xsl:text>
+            </xsl:if>
+        </xsl:for-each>
+        <xsl:text>)</xsl:text>
+        <xsl:text disable-output-escaping="yes">
+=======================================================================
+
+</xsl:text>
+
+        <xsl:choose>
+            <xsl:when test="comment">
+                <xsl:value-of select='my:replaceTags(comment)' disable-output-escaping="yes"/>
+                <xsl:text>
+
+</xsl:text>
+            </xsl:when>
+        </xsl:choose>
+
+    </xsl:template>
+
     <!-- Match constructor elements -->
     <xsl:template match="constructor[@scope='public']">
         <xsl:variable name="constructorName" select="@name"/>
@@ -225,14 +293,13 @@ JAVA API </xsl:text><xsl:value-of select="$basePackageName"/><xsl:text>
         <xsl:apply-templates select="parameter"/>
     </xsl:template>
 
-    <!-- Match method elements -->
     <xsl:template match="method[@scope='public']">
         <xsl:variable name="methodName" select="@name"/>
         <!-- Generate reStructuredText heading for method -->
         <xsl:text  disable-output-escaping="yes">
 -----------------------------------------------------------------------
 </xsl:text>
-<xsl:value-of select="$methodName"/>
+        <xsl:value-of select="$methodName"/>
         <xsl:text>(</xsl:text>
         <xsl:choose>
             <xsl:when test="parameter">

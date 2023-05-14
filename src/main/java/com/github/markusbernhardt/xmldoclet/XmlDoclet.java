@@ -10,6 +10,7 @@ import java.io.PrintWriter;
 import java.nio.charset.Charset;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.List;
 import java.util.ListIterator;
 
@@ -37,6 +38,7 @@ import com.sun.javadoc.RootDoc;
 import net.sf.saxon.s9api.*;
 
 import java.io.OutputStream;
+import java.util.Map;
 import java.util.logging.Level;
 
 /**
@@ -116,9 +118,33 @@ public class XmlDoclet {
 
         OptionBuilder.withArgName("filename");
         OptionBuilder.isRequired(false);
-        OptionBuilder.hasArg();
+        OptionBuilder.hasArgs(1);
         OptionBuilder.withDescription("Name of the output file.\nDefault: javadoc.xml");
         OPTIONS.addOption(OptionBuilder.create("filename"));
+
+        OptionBuilder.withArgName("basePackage");
+        OptionBuilder.isRequired(false);
+        OptionBuilder.hasArgs(1);
+        OptionBuilder.withDescription("Name of the base package.\n");
+        OPTIONS.addOption(OptionBuilder.create("basePackage"));
+
+        OptionBuilder.withArgName("doctitle");
+        OptionBuilder.isRequired(false);
+        OptionBuilder.hasArgs(1);
+        OptionBuilder.withDescription("Document Title\n");
+        OPTIONS.addOption(OptionBuilder.create("doctitle"));
+
+        OptionBuilder.withArgName("windowtitle");
+        OptionBuilder.isRequired(false);
+        OptionBuilder.hasArgs(1);
+        OptionBuilder.withDescription("Window Title\n");
+        OPTIONS.addOption(OptionBuilder.create("windowtitle"));
+
+        OptionBuilder.withArgName("noTimestamp");
+        OptionBuilder.isRequired(false);
+        OptionBuilder.hasArgs(0);
+        OptionBuilder.withDescription("No Timestamp.\n");
+        OPTIONS.addOption(OptionBuilder.create("notimestamp"));
     }
 
     /**
@@ -181,7 +207,8 @@ public class XmlDoclet {
         return true;
     }
 
-    public static void transform(InputStream xsltInputStream, File xmlFile, File outFile)
+    public static void transform(InputStream xsltInputStream, File xmlFile, File outFile,
+            Map<String, String> parameters)
             throws IOException, SaxonApiException {
 
         try (InputStream xmlInputStream = new FileInputStream(xmlFile);
@@ -211,6 +238,11 @@ public class XmlDoclet {
             // Set the result destination
             Serializer serializer = processor.newSerializer(output);
             transformer.setDestination(serializer);
+
+            for (Map.Entry<String, String> parameter : parameters.entrySet()) {
+                transformer.setParameter(new QName(parameter.getKey()),
+                        new XdmAtomicValue(parameter.getValue()));
+            }
 
             // Transform the XML
             transformer.transform();
@@ -271,11 +303,18 @@ public class XmlDoclet {
 
             LOGGER.info("Wrote XML to: " + xmlFile.getAbsolutePath());
 
+            HashMap<String, String> parameters = new HashMap<>();
+            for (Option o : commandLine.getOptions()) {
+                if (o.getValue() != null) {
+                    parameters.put(o.getArgName(), o.getValue());
+                }
+            }
+
             if (commandLine.hasOption("rst")) {
                 File outFile = new File(xmlFile.getParent(), basename + ".rst");
                 try (InputStream inputStream =
                         XmlDoclet.class.getResourceAsStream(RESTRUCTURED_XSL);) {
-                    transform(inputStream, xmlFile, outFile);
+                    transform(inputStream, xmlFile, outFile, parameters);
                 } catch (Exception ex) {
                     LOGGER.log(Level.SEVERE, "Failed to write Restructured Text", ex);
                 }
@@ -286,7 +325,7 @@ public class XmlDoclet {
                 File outFile = new File(xmlFile.getParent(), basename + ".md");
                 try (InputStream inputStream =
                         XmlDoclet.class.getResourceAsStream(MARKDOWN_XSL);) {
-                    transform(inputStream, xmlFile, outFile);
+                    transform(inputStream, xmlFile, outFile, parameters);
                 } catch (Exception ex) {
                     LOGGER.log(Level.SEVERE, "Failed to write Markdown", ex);
                 }

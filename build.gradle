@@ -296,7 +296,6 @@ configurations.configureEach {
         force 'org.dom4j:dom4j:+'
 
         // avoid vulnerable optional artifacts
-        //exclude(group: 'org.dom4j')
         exclude(group: 'org.jdom')
     }
 }

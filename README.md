@@ -1,7 +1,8 @@
 A doclet to output javadoc as XML
 =================================
 
-This library provides a doclet to output the javadoc comments from Java source code to a XML, Restructured Text (*.rst) document.
+This library provides a doclet to output the javadoc comments from Java source code to a XML or a Restructured Text (*.rst) document.
+
 All modern JDKs 11, 17 and 21 are supported (via `languageVersion.set(JavaLanguageVersion.of(11)` enforcing JavaDoc 11).
 
 Planned support for Markdown (*.md), Docbook XML and ASCII Doctor (*.adoc). Sponsors or Contributors are most welcome.
@@ -35,17 +36,14 @@ dependencies {
 
 tasks.register('xmldoc', Javadoc) {
     source = sourceSets.main.allJava
-    // beware, that this folder will be overwittten by Gradle
+    // beware, that this folder will be overwritten hard by Gradle
     destinationDir = reporting.file("xmlDoclet")
     options.docletpath = configurations.xmlDoclet.files.asType(List)
     options.doclet = "com.github.markusbernhardt.xmldoclet.XmlDoclet"
 
-    // @see https://github.com/gradle/gradle/issues/11898#issue-549900869
-    title = null
-    options.noTimestamp(false)
-
     // transform to Restructured Text and copy to Sphinx Source folder
     options.addBooleanOption("rst", true)
+    options.addStringOption("basePackage", "net.sf.jsqlparser")
 
     doLast {
         copy {
@@ -88,7 +86,7 @@ If you are using maven you can use this library by adding the following report t
                 <docletArtifact>
                     <groupId>com.manticore-projects.tools</groupId>
                     <artifactId>xml-doclet</artifactId>
-                    <version>1.1.3</version>
+                    <version>1.2.1</version>
                 </docletArtifact>
             </configuration>
         </execution>
@@ -122,3 +120,5 @@ Options
 
     -adoc                     Not implemented yet: Write Ascii Doctor (*.adoc)
                               Default: false
+
+    -basePackage <name>       Shortens the Qualified Names by the Base Package name
