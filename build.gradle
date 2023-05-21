@@ -2,6 +2,7 @@ import se.bjurr.gitchangelog.plugin.gradle.GitChangelogTask
 
 plugins {
     id 'java-library'
+    id 'com.github.johnrengelman.shadow' version 'latest.release'
     id 'maven-publish'
     id 'signing'
 
@@ -17,6 +18,27 @@ plugins {
     id 'org.sonatype.gradle.plugins.scan' version "latest.release"
 
     id "se.bjurr.gitchangelog.git-changelog-gradle-plugin" version "latest.release"
+    id 'org.hidetake.ssh' version "latest.release"
+}
+
+configurations {
+    xmlDoclet
+
+    configureEach {
+        resolutionStrategy {
+            force 'org.apache.logging.log4j:log4j-api:2.+'
+            force 'org.apache.logging.log4j:log4j-core:2.+'
+            force 'org.apache.logging.log4j:log4j-slf4j-impl:2.+'
+            force 'org.apache.logging.log4j:log4j-jul:2.+'
+            force 'org.slf4j:slf4j-log4j12:2.+'
+            force 'xerces:xercesImpl:+'
+            force 'xalan:xalan:+'
+            force 'org.dom4j:dom4j:+'
+
+            // avoid vulnerable optional artifacts
+            exclude(group: 'org.jdom')
+        }
+    }
 }
 
 repositories {
@@ -46,18 +68,24 @@ dependencies {
 
     // https://mvnrepository.com/artifact/net.sf.saxon/Saxon-HE
     api 'net.sf.saxon:Saxon-HE:12.2'
+
+    // Java Doc in XML Format
+    xmlDoclet 'javax.xml.bind:jaxb-api:2.+'
+    xmlDoclet 'org.glassfish.jaxb:jaxb-runtime:2.3.2'
+    xmlDoclet 'javax.activation:javax.activation-api:1.2.0'
+    xmlDoclet 'com.manticore-projects.tools:xml-doclet:+'
 }
 
 
 def getVersion = { boolean considerSnapshot ->
-    def major = 0
-    def minor = 0
-    def patch = 0
-    def commit = ""
-    def snapshot =""
+    Integer major = 0
+    Integer minor = 0
+    Integer patch = null
+    Integer build = null
+    def commit = null
+    def snapshot = ""
     new ByteArrayOutputStream().withStream { os ->
         exec {
-            workingDir "$projectDir"
             args = [
                     "--no-pager"
                     , "describe"
@@ -69,21 +97,25 @@ def getVersion = { boolean considerSnapshot ->
             standardOutput = os
         }
         def versionStr = os.toString().trim()
-        System.out.println("Version: $versionStr")
-        def matcher = versionStr =~ /(\d*)\.(\d*)\.(\d*)(-(\d*)-([a-zA-Z\d]*))?/
-        matcher.find()
+        def pattern = /(?<major>\d*)\.(?<minor>\d*)(\.(?<patch>\d*))?(-(?<build>\d*)-(?<commit>[a-zA-Z\d]*))?/
+        def matcher = versionStr =~ pattern
+        if (matcher.find()) {
+            major = matcher.group('major') as Integer
+            minor = matcher.group('minor') as Integer
+            patch = matcher.group('patch') as Integer
+            build = matcher.group('build') as Integer
+            commit = matcher.group('commit')
+        }
 
-        major = matcher[0][1]
-        minor = matcher[0][2]
-        patch = matcher[0][3]
-        commit = matcher[0][5]
-
-        if (considerSnapshot && versionStr.endsWith("SNAPSHOT")) {
+        if (considerSnapshot && ( versionStr.endsWith('SNAPSHOT') || build!=null) ) {
             minor++
-            snapshot =  "-SNAPSHOT"
+            if (patch!=null) patch = 0
+            snapshot = "-SNAPSHOT"
         }
     }
-    return "${major}.${minor}.${patch}${snapshot}"
+    return patch!=null
+            ? "${major}.${minor}.${patch}${snapshot}"
+            :  "${major}.${minor}${snapshot}"
 }
 version = getVersion(true)
 group = 'com.manticore-projects.tools'
@@ -175,15 +207,33 @@ java {
     }
 }
 
+jar {
+    manifest {
+        attributes('Main-Class': 'com.github.markusbernhardt.xmldoclet.XmlDoclet')
+    }
+}
+
+shadowJar {
+    minimize()
+}
+
 jaxb2 {
     xjc {
       'xmldoclet-classes' {
         basePackage = 'com.github.markusbernhardt.xmldoclet.xjc'
         schema = 'src/main/xjc/javadoc.xsd'
         encoding = 'UTF-8'
-        generatedSourcesDir = "${project.buildDir}/generated/sources/java"
+        generatedSourcesDir = "${project.buildDir}/generated/sources/java/main/xjc"
         additionalArgs = '-extension'
       }
+    }
+}
+
+sourceSets {
+    main {
+        java {
+            srcDir "${project.buildDir}/generated/sources/java/main"
+        }
     }
 }
 
@@ -194,11 +244,32 @@ javadoc {
     options.addBooleanOption("Xdoclint:none", true)
 }
 
-tasks.withType(JavaCompile) {
+tasks.register('xmldoc', Javadoc) {
+    dependsOn(jar)
+    source = sourceSets.main.allJava
+
+    // beware: Gradle deletes this folder automatically and there is no switch-off
+    destinationDir = reporting.file("xmlDoclet")
+    options.docletpath = configurations.xmlDoclet.files.asType(List)
+    options.doclet = "com.github.markusbernhardt.xmldoclet.XmlDoclet"
+    title = "API $version"
+    options.addBooleanOption("rst", true)
+    options.addBooleanOption("withFloatingToc", true)
+    options.addStringOption("basePackage", "com.github.markusbernhardt.xmldoclet")
+
+    doLast {
+        copy {
+            from reporting.file("xmlDoclet/javadoc.rst")
+            into "${projectDir}/src/site/sphinx"
+        }
+    }
+}
+
+tasks.withType(JavaCompile).configureEach {
     options.encoding = 'UTF-8'
 }
 
-tasks.withType(Javadoc) {
+tasks.withType(Javadoc).configureEach {
     options.encoding = 'UTF-8'
 }
 
@@ -240,7 +311,7 @@ pmd {
     }
 }
 
-tasks.whenTaskAdded {task ->
+tasks.configureEach { task ->
     if(task.name.contains("compileJaxb2Java")) {
         task.enabled = false
     }
@@ -269,33 +340,51 @@ spotless {
     }
 }
 
-tasks.withType(Checkstyle) {
+tasks.withType(Checkstyle).configureEach {
     reports {
         xml.required = false
         html.required = true
     }
 }
 
-configurations.configureEach {
-    resolutionStrategy.componentSelection {
-        all { ComponentSelection selection ->
-            if (selection.candidate.group == 'com.github.pjfanning' && selection.candidate.version.endsWith("-SNAPSHOT")){
-                selection.reject("Rejecting changing version (SNAPSHOT)'")
+remotes {
+    webServer {
+        host = findProperty("${project.name}.host")
+        user = findProperty("${project.name}.username")
+        identity = new File("${System.properties['user.home']}/.ssh/id_rsa")
+    }
+}
+
+tasks.register('upload') {
+    doFirst {
+        if (findProperty("${project.name}.host") == null) {
+            println(
+                    """
+                Property \"${project.name}.host\' not found.
+                Please define \"${project.name}.host\" in the Gradle configuration (e. g. \$HOME/.gradle/gradle.properties.
+                """
+            )
+        }
+    }
+    doLast {
+        ssh.run {
+            session(remotes.webServer) {
+                def versionStable = getVersion(false)
+                execute "mkdir -p download/${project.name}-${versionStable}"
+                for (File file: fileTree(include:['*.jar'], dir:"${project.buildDir}/libs").collect()) {
+                    put from: file, into: "download/${project.name}-${versionStable}"
+                }
+
+                // share the two relevant resources for download
+                put from: "${projectDir}/src/main/resources/com/manticore/floating_toc.css", into: "download/${project.name}-${versionStable}"
+                put from: "${projectDir}/src/main/resources/com/manticore/floating_toc.js", into: "download/${project.name}-${versionStable}"
             }
         }
     }
+}
 
-    resolutionStrategy {
-        force 'org.apache.logging.log4j:log4j-api:2.+'
-        force 'org.apache.logging.log4j:log4j-core:2.+'
-        force 'org.apache.logging.log4j:log4j-slf4j-impl:2.+'
-        force 'org.apache.logging.log4j:log4j-jul:2.+'
-        force 'org.slf4j:slf4j-log4j12:2.+'
-        force 'xerces:xercesImpl:+'
-        force 'xalan:xalan:+'
-        force 'org.dom4j:dom4j:+'
-
-        // avoid vulnerable optional artifacts
-        exclude(group: 'org.jdom')
-    }
+tasks.register('gitChangelogTask', GitChangelogTask) {
+    fromRepo = file("$projectDir")
+    file = new File("${projectDir}/src/site/sphinx/changelog.md")
+    fromRef = "1.0"
 }

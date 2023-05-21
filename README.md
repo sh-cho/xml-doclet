@@ -1,6 +1,10 @@
 A doclet to output javadoc as XML
 =================================
 
+[Website](https://www.manticore-projects.com/XMLDoclet)
+[Documentation](https://www.manticore-projects.com/XMLDoclet/usage.html)
+[Example](https://www.manticore-projects.com/JSQLParser/syntax_snapshot.html)
+
 This library provides a doclet to output the javadoc comments from Java source code to a XML or a Restructured Text (*.rst) document.
 
 All modern JDKs 11, 17 and 21 are supported via `languageVersion.set(JavaLanguageVersion.of(11)` enforcing JavaDoc 11.
@@ -12,7 +16,7 @@ The source code has been salvaged from https://github.com/MarkusBernhardt/xml-do
 Example
 -------
 
-See the [JSQLParser Java API](https://manticore-projects.github.io/JSqlParser/javadoc.html#id554)
+See the [JSQLParser Java API](https://www.manticore-projects.com/JSQLParser/syntax_snapshot.html)
 
 Gradle
 ------
