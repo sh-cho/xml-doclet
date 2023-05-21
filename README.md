@@ -14,7 +14,7 @@ The source code has been salvaged from https://github.com/MarkusBernhardt/xml-do
 Example
 -------
 
-See the [JSQLParser Java API](https://www.manticore-projects.com/JSQLParser/syntax_snapshot.html)
+See the [JSQLParser Java API](https://www.manticore-projects.com/JSQLParser/javadoc_snapshot.html#arrayexpression)
 
 Gradle
 ------
