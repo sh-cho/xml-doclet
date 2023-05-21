@@ -145,6 +145,13 @@ public class XmlDoclet {
         OptionBuilder.hasArgs(0);
         OptionBuilder.withDescription("No Timestamp.\n");
         OPTIONS.addOption(OptionBuilder.create("notimestamp"));
+
+        // withFloatingToc
+        OptionBuilder.withArgName("withFloatingToc");
+        OptionBuilder.isRequired(false);
+        OptionBuilder.hasArgs(0);
+        OptionBuilder.withDescription("Renders a Floating TOC on the right side.\n");
+        OPTIONS.addOption(OptionBuilder.create("withFloatingToc"));
     }
 
     /**
@@ -307,6 +314,8 @@ public class XmlDoclet {
             for (Option o : commandLine.getOptions()) {
                 if (o.getValue() != null) {
                     parameters.put(o.getArgName(), o.getValue());
+                } else {
+                    parameters.put(o.getArgName(), "true");
                 }
             }
 
