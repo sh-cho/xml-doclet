@@ -1,7 +1,7 @@
 A doclet to output javadoc as XML
 =================================
 
-[Website](https://www.manticore-projects.com/XMLDoclet) | [Documentation](https://www.manticore-projects.com/XMLDoclet/usage.html) |[Example](https://www.manticore-projects.com/JSQLParser/syntax_snapshot.html)
+[Website](https://www.manticore-projects.com/XMLDoclet) | [Documentation](https://www.manticore-projects.com/XMLDoclet/usage.html) |[Example](https://www.manticore-projects.com/JSQLParser/javadoc_snapshot.html#analyticexpression)
 
 This library provides a doclet to output the javadoc comments from Java source code to a XML or a Restructured Text (*.rst) document.
 
