@@ -9,6 +9,7 @@ import javax.lang.model.SourceVersion;
 import javax.lang.model.element.ElementKind;
 import javax.lang.model.element.PackageElement;
 import javax.lang.model.element.TypeElement;
+import javax.lang.model.element.VariableElement;
 import javax.lang.model.util.ElementFilter;
 import javax.tools.Diagnostic;
 import javax.xml.stream.XMLOutputFactory;
@@ -148,7 +149,27 @@ public class XmlDoclet implements Doclet {
             writer.writeEndElement(); // comment
         }
 
+        // Process fields
+        for (VariableElement field : ElementFilter.fieldsIn(typeElement.getEnclosedElements())) {
+            processField(writer, field);
+        }
+
         // Nested elements like methods, fields, etc., can be processed similarly.
         writer.writeEndElement(); // class or interface
+    }
+
+    private void processField(XMLStreamWriter writer, VariableElement field) throws Exception {
+        writer.writeStartElement("field");
+        writer.writeAttribute("name", field.getSimpleName().toString());
+
+        // Javadoc comments
+        final DocCommentTree docCommentTree = docTrees.getDocCommentTree(field);
+        if (docCommentTree != null) {
+            writer.writeStartElement("comment");
+            writer.writeCharacters(docCommentTree.toString());
+            writer.writeEndElement(); // comment
+        }
+
+        writer.writeEndElement(); // field
     }
 }
